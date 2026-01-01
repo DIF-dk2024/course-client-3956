@@ -4,14 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Собака-Бяка</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="header">
     <div class="container header__row">
       <div class="brand">
-        <div class="brand__title">Собака-Бяка</div>
-        <div class="brand__subtitle">Карточки (публикация — только админ)</div>
+        <img class="brand__logo" src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+        <div>
+          <div class="brand__title">Собака-Бяка</div>
+          <div class="brand__subtitle">Карточки (публикация — только админ)</div>
+        </div>
       </div>
 
       <nav class="nav">

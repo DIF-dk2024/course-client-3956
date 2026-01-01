@@ -2,11 +2,13 @@
 {% block content %}
   <section class="section">
     <h1 class="h1">Карточки</h1>
-    <p class="muted">Публичный просмотр. Добавление — только через админку.</p>
+    <p class="muted">Публичный просмотр. Добавление карточек — только через админку.</p>
   </section>
 
   {% if not cards %}
-    <div class="empty">Пока нет карточек.</div>
+    <div class="empty">
+      Пока нет карточек.
+    </div>
   {% endif %}
 
   <div class="grid">
