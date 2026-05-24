@@ -2,13 +2,13 @@ services:
   - type: web
     name: course-client-070
     env: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 600 --graceful-timeout 600 --access-logfile - --error-logfile - --log-level info
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     disk:
       name: data
       mountPath: /var/data
-      sizeGB: 5
+      sizeGB: 1
     envVars:
       - key: DATA_DIR
         value: /var/data

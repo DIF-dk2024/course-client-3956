@@ -46,3 +46,24 @@ python app.py
 - `/admin/new` — новая карточка
 - `/admin/edit/<id>` — редактирование (название/описание, добавление файлов)
 - Удаление файла: кнопка на странице редактирования
+
+
+## Render upload settings for video files
+
+For 40-100MB videos, use a paid instance with a Persistent Disk.
+
+Recommended Render settings:
+
+- Plan: Starter or higher
+- Disk mount path: `/var/data`
+- Disk size: 5GB or higher
+- `DATA_DIR=/var/data`
+- `UPLOADS_DIR=/var/data/uploads`
+- `MAX_UPLOAD_MB=500`
+- Start command:
+
+```bash
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 600 --graceful-timeout 600 --access-logfile - --error-logfile - --log-level info
+```
+
+The extended Gunicorn timeout prevents larger uploads from being killed during slow connections.
