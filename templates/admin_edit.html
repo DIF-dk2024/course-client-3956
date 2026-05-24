@@ -2,24 +2,39 @@
 {% block content %}
   <section class="section">
     <h1 class="h1">Редактировать карточку</h1>
-    <p class="muted">Изменяй название/описание, добавляй файлы и удаляй вложения.</p>
+    <p class="muted">Название/описание сохраняются отдельно. Файлы и видео загружаются отдельным запросом с прогрессом.</p>
   </section>
 
-  <form class="form" method="post" enctype="multipart/form-data">
+  <form class="form" method="post">
     <label class="label">Название</label>
     <input class="input" type="text" name="title" maxlength="120" value="{{ card.title }}" required>
 
     <label class="label">Описание</label>
     <textarea class="textarea" name="description" rows="6" maxlength="2000">{{ card.description }}</textarea>
 
-    <label class="label">Добавить файлы / видео (можно несколько)</label>
-    <input class="input" type="file" name="files" multiple>
-
     <div class="row">
-      <button class="btn btn-primary" type="submit">Сохранить</button>
+      <button class="btn btn-primary" type="submit">Сохранить текст</button>
       <a class="btn" href="{{ url_for('index') }}">Назад</a>
     </div>
   </form>
+
+  <section class="section upload-panel" data-upload-url="{{ url_for('admin_upload_file', card_id=card.id) }}">
+    <h2 class="h2">Загрузить файлы / видео</h2>
+    <p class="muted small">
+      Поддержка: изображения, видео mp4/webm/mov/m4v, PDF и офисные документы. Видео загружается отдельно от формы, поэтому страница не должна уходить в 500 из-за <code>request.form</code>.
+    </p>
+
+    <div class="form upload-form">
+      <label class="label">Выбери один или несколько файлов</label>
+      <input id="asyncFiles" class="input" type="file" multiple>
+
+      <div class="row">
+        <button id="uploadBtn" class="btn btn-primary" type="button">Загрузить выбранные файлы</button>
+      </div>
+
+      <div id="uploadList" class="upload-list"></div>
+    </div>
+  </section>
 
   {% if card.files and card.files|length > 0 %}
     <section class="section">
@@ -36,7 +51,7 @@
               <a href="{{ f.url }}" target="_blank" rel="noopener">
                 <img src="{{ f.url }}" alt="{{ f.name }}">
               </a>
-            {% elif ext in ["mp4","webm","mov"] %}
+            {% elif ext in ["mp4","webm","mov","m4v"] %}
               <video controls preload="metadata" src="{{ f.url }}"></video>
             {% else %}
               <a class="att-file" href="{{ f.url }}" target="_blank" rel="noopener">
@@ -63,4 +78,105 @@
       <p class="muted">У этой карточки пока нет вложений.</p>
     </section>
   {% endif %}
+
+  <script>
+    (function () {
+      const panel = document.querySelector('.upload-panel');
+      const input = document.getElementById('asyncFiles');
+      const btn = document.getElementById('uploadBtn');
+      const list = document.getElementById('uploadList');
+      if (!panel || !input || !btn || !list) return;
+
+      const uploadUrl = panel.dataset.uploadUrl;
+
+      function formatMB(bytes) {
+        return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+      }
+
+      function makeRow(file) {
+        const row = document.createElement('div');
+        row.className = 'upload-item';
+        row.innerHTML = `
+          <div class="upload-item__top">
+            <span class="upload-item__name"></span>
+            <span class="upload-item__status">ожидание</span>
+          </div>
+          <div class="progress"><div class="progress__bar"></div></div>
+        `;
+        row.querySelector('.upload-item__name').textContent = file.name + ' • ' + formatMB(file.size);
+        return row;
+      }
+
+      function uploadOne(file, row) {
+        return new Promise((resolve) => {
+          const xhr = new XMLHttpRequest();
+          const status = row.querySelector('.upload-item__status');
+          const bar = row.querySelector('.progress__bar');
+
+          xhr.open('POST', uploadUrl, true);
+          xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+          xhr.upload.onprogress = function (event) {
+            if (!event.lengthComputable) return;
+            const pct = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+            bar.style.width = pct + '%';
+            status.textContent = pct + '%';
+          };
+
+          xhr.onload = function () {
+            let payload = null;
+            try { payload = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+
+            if (xhr.status >= 200 && xhr.status < 300 && payload && payload.ok) {
+              bar.style.width = '100%';
+              status.textContent = 'готово';
+              row.classList.add('upload-item-ok');
+              resolve(true);
+            } else {
+              const msg = payload && payload.error ? payload.error : ('HTTP ' + xhr.status);
+              status.textContent = 'ошибка: ' + msg;
+              row.classList.add('upload-item-error');
+              resolve(false);
+            }
+          };
+
+          xhr.onerror = function () {
+            status.textContent = 'ошибка сети';
+            row.classList.add('upload-item-error');
+            resolve(false);
+          };
+
+          xhr.send(file);
+        });
+      }
+
+      btn.addEventListener('click', async function () {
+        const files = Array.from(input.files || []);
+        if (!files.length) {
+          alert('Сначала выбери файл.');
+          return;
+        }
+
+        btn.disabled = true;
+        input.disabled = true;
+        list.innerHTML = '';
+
+        let okCount = 0;
+        for (const file of files) {
+          const row = makeRow(file);
+          list.appendChild(row);
+          const ok = await uploadOne(file, row);
+          if (ok) okCount += 1;
+        }
+
+        btn.disabled = false;
+        input.disabled = false;
+
+        if (okCount > 0) {
+          setTimeout(function () { window.location.reload(); }, 800);
+        }
+      });
+    })();
+  </script>
 {% endblock %}

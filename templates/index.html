@@ -43,7 +43,7 @@
                 <a class="att att-img" href="{{ f.url }}" target="_blank" rel="noopener">
                   <img src="{{ f.url }}" alt="{{ f.name }}">
                 </a>
-              {% elif ext in ["mp4","webm","mov"] %}
+              {% elif ext in ["mp4","webm","mov","m4v"] %}
                 <div class="att att-video">
                   <video controls preload="metadata" src="{{ f.url }}"></video>
                   <div class="att__name">{{ f.name }}</div>

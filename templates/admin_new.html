@@ -2,26 +2,22 @@
 {% block content %}
   <section class="section">
     <h1 class="h1">Новая карточка</h1>
-    <p class="muted">Только поля: «Название», «Описание», файлы и видео.</p>
+    <p class="muted">Сначала создай карточку с названием и описанием. PDF/видео загрузишь следующим шагом через отдельный загрузчик.</p>
   </section>
 
-  <form class="form" method="post" enctype="multipart/form-data">
+  <form class="form" method="post">
     <label class="label">Название</label>
     <input class="input" type="text" name="title" maxlength="120" required>
 
     <label class="label">Описание</label>
     <textarea class="textarea" name="description" rows="5" maxlength="2000" placeholder="Коротко и по делу"></textarea>
 
-    <label class="label">Файлы и видео</label>
-    <input class="input" type="file" name="files" multiple>
-
     <div class="muted small">
-      Поддержка: изображения (jpg/png/gif/webp), видео (mp4/webm/mov), документы (pdf и др.).<br>
-      Лимит размера запроса задаётся переменной <code>MAX_CONTENT_LENGTH</code> (по умолчанию 500MB).
+      Большие файлы больше не отправляются вместе с этой формой. Это защищает портал от зависания при видео 40–500 MB.
     </div>
 
     <div class="row">
-      <button class="btn btn-primary" type="submit">Опубликовать</button>
+      <button class="btn btn-primary" type="submit">Создать карточку</button>
       <a class="btn" href="{{ url_for('index') }}">Отмена</a>
     </div>
   </form>
