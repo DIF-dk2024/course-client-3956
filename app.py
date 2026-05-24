@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import uuid
 import datetime as dt
 import shutil
@@ -10,6 +11,7 @@ from flask import (
     flash, session, send_from_directory, abort
 )
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 from filelock import FileLock
 
 
@@ -23,11 +25,39 @@ ALLOWED_EXTENSIONS = {
     # images
     "jpg", "jpeg", "png", "gif", "webp",
     # videos
-    "mp4", "webm", "mov",
+    "mp4", "webm", "mov", "m4v", "avi", "mkv",
     # documents / archives (download-only)
     "pdf", "txt", "csv", "zip", "7z", "rar",
     "doc", "docx", "xls", "xlsx", "ppt", "pptx",
 }
+
+DEFAULT_MAX_UPLOAD_MB = 500
+
+
+def parse_max_content_length() -> int:
+    """Return upload limit in bytes.
+
+    Supports either:
+      MAX_CONTENT_LENGTH=524288000   # bytes
+      MAX_UPLOAD_MB=500              # megabytes
+
+    If MAX_CONTENT_LENGTH is accidentally too small, Render may return a 500/413
+    during video upload. The default here is intentionally generous for course videos.
+    """
+    raw_bytes = os.environ.get("MAX_CONTENT_LENGTH")
+    if raw_bytes:
+        try:
+            return int(raw_bytes)
+        except ValueError:
+            # Do not crash the app because of a bad env var. Fall back to MB setting.
+            pass
+
+    try:
+        mb = int(os.environ.get("MAX_UPLOAD_MB", str(DEFAULT_MAX_UPLOAD_MB)))
+    except ValueError:
+        mb = DEFAULT_MAX_UPLOAD_MB
+
+    return mb * 1024 * 1024
 
 
 def create_app() -> Flask:
@@ -38,8 +68,23 @@ def create_app() -> Flask:
     app.config["DATA_DIR"] = os.environ.get("DATA_DIR", DEFAULT_DATA_DIR)
     app.config["UPLOADS_DIR"] = os.environ.get("UPLOADS_DIR", DEFAULT_UPLOADS_DIR)
 
-    # Upload limit (bytes). Example for ~30MB: 31457280
-    app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH", str(120 * 1024 * 1024)))  # 120 MB
+    # Upload limit. Default is 500 MB; can be changed on Render via MAX_UPLOAD_MB.
+    app.config["MAX_CONTENT_LENGTH"] = parse_max_content_length()
+
+    logging.basicConfig(level=logging.INFO)
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_file_too_large(error):
+        max_mb = int(app.config["MAX_CONTENT_LENGTH"] / 1024 / 1024)
+        flash(f"Файл слишком большой. Текущий лимит загрузки: {max_mb} MB.", "error")
+        return redirect(request.referrer or url_for("admin_new"))
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        # Keep real traceback in Render Logs, but show a clean message in the browser.
+        app.logger.exception("Unexpected server error: %s", error)
+        flash("Ошибка сервера при сохранении. Проверь Render Logs: лимит файла, путь /var/data, свободное место или расширение файла.", "error")
+        return redirect(request.referrer or url_for("index"))
 
     ensure_dirs(app)
 
@@ -124,7 +169,12 @@ def create_app() -> Flask:
 
                 filename = unique_filename(card_folder, filename)
                 save_path = os.path.join(card_folder, filename)
-                f.save(save_path)
+                try:
+                    f.save(save_path)
+                except Exception as exc:
+                    app.logger.exception("Could not save uploaded file %s to %s", original, save_path)
+                    flash(f"Не удалось сохранить файл «{original}»: {exc}", "error")
+                    continue
 
                 saved_files.append({
                     "name": filename,
@@ -209,7 +259,12 @@ def create_app() -> Flask:
 
                 filename = unique_filename(card_folder, filename)
                 save_path = os.path.join(card_folder, filename)
-                f.save(save_path)
+                try:
+                    f.save(save_path)
+                except Exception as exc:
+                    app.logger.exception("Could not save uploaded file %s to %s", original, save_path)
+                    flash(f"Не удалось сохранить файл «{original}»: {exc}", "error")
+                    continue
 
                 saved_files.append({
                     "name": filename,

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sobaka-admin-cards
+    name: course-client-070
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -14,5 +14,7 @@ services:
         value: /var/data
       - key: UPLOADS_DIR
         value: /var/data/uploads
+      - key: MAX_UPLOAD_MB
+        value: "500"
       - key: PYTHON_VERSION
         value: 3.11.9
